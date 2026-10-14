@@ -1,0 +1,2690 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ДНК-Реконструктор: Генетический Пазл — Симулятор репарации ДНК</title>
+<style>
+  :root {
+    --bg-deep: #070b19;
+    --bg-panel: rgba(15, 23, 42, 0.88);
+    --bg-card: rgba(30, 41, 59, 0.85);
+    --border-glow: rgba(56, 189, 248, 0.35);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent-cyan: #06b6d4;
+    --accent-blue: #3b82f6;
+    --accent-purple: #8b5cf6;
+    --accent-green: #10b981;
+    --accent-amber: #f59e0b;
+    --accent-rose: #f43f5e;
+    /* Nucleotide colors: 0=A, 1=C, 2=G, 3=T */
+    --col-0: #ff5964; /* 0 = A (Аденин) - кораллово-красный */
+    --col-1: #38bdf8; /* 1 = C (Цитозин) - неоново-голубой */
+    --col-2: #fbbf24; /* 2 = G (Гуанин) - солнечно-золотой */
+    --col-3: #34d399; /* 3 = T (Тимин) - изумрудно-зелёный */
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    background: radial-gradient(circle at 50% 30%, #111c38 0%, #070b19 75%);
+    color: var(--text-main);
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ==================== TOP HUD PANEL ==================== */
+  .top-hud {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 16px;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(15, 23, 42, 0.82) 100%);
+    border-bottom: 1px solid var(--border-glow);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    z-index: 20;
+    flex-wrap: wrap;
+  }
+
+  .brand-block {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .brand-logo {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
+  }
+
+  .brand-title {
+    font-weight: 800;
+    font-size: 16px;
+    letter-spacing: 0.3px;
+    background: linear-gradient(90deg, #38bdf8, #c084fc, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .hud-metrics {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .metric-pill {
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 10px;
+    padding: 4px 11px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 82px;
+    position: relative;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+
+  .metric-pill.highlight {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+  }
+
+  .metric-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .metric-value {
+    font-size: 15px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+  }
+
+  .metric-value.score-val { color: #fbbf24; }
+  .metric-value.level-val { color: #38bdf8; }
+  .metric-value.time-val  { color: #34d399; }
+  .metric-value.acc-val   { color: #a78bfa; }
+  .metric-value.err-val   { color: #fb7185; }
+
+  .hud-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    background: rgba(30, 41, 59, 0.9);
+    color: var(--text-main);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    padding: 6px 11px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.18s ease;
+  }
+
+  .btn:hover {
+    background: rgba(51, 65, 85, 0.95);
+    border-color: #38bdf8;
+    transform: translateY(-1px);
+  }
+
+  .btn:active {
+    transform: translateY(0);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #0284c7, #6366f1);
+    border-color: #38bdf8;
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35);
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #0369a1, #4f46e5);
+  }
+
+  .btn-success {
+    background: linear-gradient(135deg, #059669, #10b981);
+    border-color: #34d399;
+    color: #fff;
+  }
+
+  .btn-amber {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    border-color: #fbbf24;
+    color: #fff;
+  }
+
+  select.level-select {
+    background: rgba(30, 41, 59, 0.95);
+    color: #fff;
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+  }
+
+  /* ==================== MISSION BANNER & SUB-BAR ==================== */
+  .mission-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 16px;
+    background: rgba(15, 23, 42, 0.75);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    z-index: 15;
+    flex-wrap: wrap;
+  }
+
+  .mission-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 260px;
+  }
+
+  .mission-badge {
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    color: #fff;
+    font-weight: 800;
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+
+  .mission-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #e2e8f0;
+  }
+
+  .mission-desc {
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.35;
+  }
+
+  .legend-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .legend-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+
+  /* ==================== MAIN WORKSPACE ==================== */
+  .workspace {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+  }
+
+  #dnaCanvas {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+  }
+
+  #dnaCanvas:active {
+    cursor: grabbing;
+  }
+
+  /* ==================== FLOATING CONTROLS & OVERLAYS ==================== */
+  .canvas-toolbar {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 6px 10px;
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+    z-index: 12;
+    flex-wrap: wrap;
+    max-width: calc(100vw - 30px);
+  }
+
+  .toolbar-hint {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-right: 4px;
+  }
+
+  .toolbar-hint kbd {
+    background: rgba(51, 65, 85, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 10px;
+    color: #f8fafc;
+  }
+
+  /* Special Mission Interactive Panel (for Detective STR / Stop-Codon / Raw Code View) */
+  .side-drawer {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 355px;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100% - 80px);
+    overflow-y: auto;
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(56, 189, 248, 0.38);
+    border-radius: 14px;
+    padding: 12px 14px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    z-index: 14;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+
+  .side-drawer.collapsed {
+    transform: translateX(calc(100% + 20px));
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  }
+
+  .drawer-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .raw-code-box {
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 11.5px;
+    line-height: 1.45;
+    background: rgba(2, 6, 23, 0.85);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: #e2e8f0;
+    overflow-x: auto;
+    white-space: pre;
+    margin-bottom: 10px;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  .bio-fact-box {
+    background: rgba(16, 185, 129, 0.1);
+    border-left: 3px solid #10b981;
+    padding: 8px 10px;
+    border-radius: 0 8px 8px 0;
+    font-size: 12px;
+    color: #d1fae5;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+
+  .task-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+  }
+
+  .task-item.done {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #a7f3d0;
+  }
+
+  /* Special interactive quiz buttons inside drawer (for STR detective & Stop codon missions) */
+  .detective-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .detective-btn {
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: #f1f5f9;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .detective-btn:hover {
+    background: rgba(51, 65, 85, 0.95);
+    border-color: #38bdf8;
+  }
+
+  .detective-btn.correct {
+    background: rgba(16, 185, 129, 0.3);
+    border-color: #10b981;
+    color: #fff;
+  }
+
+  .detective-btn.wrong {
+    background: rgba(244, 63, 94, 0.3);
+    border-color: #f43f5e;
+  }
+
+  /* ==================== TOAST & COMBO POPUP ==================== */
+  .toast-banner {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    z-index: 25;
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+
+  .toast-banner.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(4px);
+  }
+
+  /* ==================== MODAL DIALOGS ==================== */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.8);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    padding: 16px;
+  }
+
+  .modal-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .modal-card {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    border-radius: 18px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.75);
+    color: var(--text-main);
+  }
+
+  .modal-title {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, #38bdf8, #34d399, #fbbf24);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .modal-subtitle {
+    font-size: 14px;
+    color: #cbd5e1;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin: 16px 0;
+  }
+
+  .stat-box {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 12px;
+    padding: 10px;
+    text-align: center;
+  }
+
+  .stat-box .lbl {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .stat-box .val {
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .stars-row {
+    font-size: 32px;
+    text-align: center;
+    margin: 10px 0;
+    letter-spacing: 6px;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+
+  .code-steps {
+    background: rgba(2, 6, 23, 0.8);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #e2e8f0;
+    margin: 10px 0;
+  }
+
+  @media (max-width: 900px) {
+    .side-drawer {
+      width: 300px;
+      font-size: 11px;
+    }
+    .toolbar-hint {
+      display: none;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== TOP HUD PANEL ==================== -->
+<header class="top-hud">
+  <div class="brand-block">
+    <div class="brand-logo" title="ДНК-Реконструктор">🧬</div>
+    <div>
+      <div class="brand-title">ДНК-Реконструктор</div>
+      <div class="brand-sub">Лаборатория генной инженерии · 5–9 класс</div>
+    </div>
+  </div>
+
+  <div class="hud-metrics">
+    <div class="metric-pill highlight" title="Зависят от скорости, точности, комбо и числа ошибок">
+      <span class="metric-label">🏆 Очки</span>
+      <span class="metric-value score-val" id="hudScore">0</span>
+    </div>
+    <div class="metric-pill" title="Текущий уровень сложности и прогресс">
+      <span class="metric-label">🧬 Уровень</span>
+      <span class="metric-value level-val" id="hudLevel">1 / 10</span>
+    </div>
+    <div class="metric-pill" title="Затраченное время на текущий уровень">
+      <span class="metric-label">⏱ Время уровня</span>
+      <span class="metric-value time-val" id="hudLevelTime">00:00</span>
+    </div>
+    <div class="metric-pill" title="Общее время прохождения всех миссий">
+      <span class="metric-label">⏳ Общее время</span>
+      <span class="metric-value time-val" id="hudTotalTime">00:00</span>
+    </div>
+    <div class="metric-pill" title="Процент точных действий и серия без ошибок">
+      <span class="metric-label">🎯 Точность</span>
+      <span class="metric-value acc-val" id="hudAccuracy">100% (x1)</span>
+    </div>
+    <div class="metric-pill" title="Количество ошибок на текущем уровне (влияет на очки)">
+      <span class="metric-label">⚠️ Ошибки</span>
+      <span class="metric-value err-val" id="hudErrors">0</span>
+    </div>
+  </div>
+
+  <div class="hud-controls">
+    <select id="levelSelect" class="level-select" title="Выбрать миссию"></select>
+    <button class="btn" id="btnNotation" title="Переключить отображение: Цифры (0123) и Буквы (ACGT)">🔢 Режим: 0/A</button>
+    <button class="btn" id="btnHint" title="Подсветить куда подходит выбранный фрагмент (-25 очков)">💡 Подсказка</button>
+    <button class="btn" id="btnDrawerToggle" title="Показать/скрыть досье гена и исходный код">📋 Досье гена</button>
+    <button class="btn" id="btnHelp" title="Как играть и управлять мышью">❓ Правила</button>
+    <button class="btn" id="btnSound" title="Включить/выключить звуковые эффекты">🔊</button>
+  </div>
+</header>
+
+<!-- ==================== MISSION BAR & COMPLEMENTARITY LEGEND ==================== -->
+<section class="mission-bar">
+  <div class="mission-info">
+    <span class="mission-badge" id="missionBadge">Миссия 1</span>
+    <div>
+      <div class="mission-title" id="missionTitle">Загрузка...</div>
+      <div class="mission-desc" id="missionDesc">...</div>
+    </div>
+  </div>
+
+  <div class="legend-bar" title="Правило Чаргаффа: 0(A) всегда спаривается с 3(T), а 1(C) — с 2(G). Сумма цифр в паре всегда равна 3!">
+    <span style="font-size:11px; color:#94a3b8; font-weight:700;">Правило пар (сумма = 3):</span>
+    <span class="legend-chip"><span class="dot" style="background:var(--col-0)"></span>0 (A · Аденин) ↔ <span class="dot" style="background:var(--col-3)"></span>3 (T · Тимин) [2 связи]</span>
+    <span class="legend-chip"><span class="dot" style="background:var(--col-1)"></span>1 (C · Цитозин) ↔ <span class="dot" style="background:var(--col-2)"></span>2 (G · Гуанин) [3 связи]</span>
+  </div>
+</section>
+
+<!-- ==================== INTERACTIVE CANVAS WORKSPACE ==================== -->
+<main class="workspace">
+  <canvas id="dnaCanvas"></canvas>
+
+  <div class="toast-banner" id="toastBanner">Отлично! +150 очков</div>
+
+  <!-- Bottom Floating Controls for Mouse & Rotation -->
+  <div class="canvas-toolbar">
+    <span class="toolbar-hint">
+      🖱️ <b>ЛКМ:</b> двигать фрагмент или цепь &nbsp;|&nbsp;
+      🔄 <b>Кольцо ↻ / Колёсико мыши / ПКМ:</b> вращать фрагмент или цепь &nbsp;|&nbsp;
+      <kbd>Q</kbd>/<kbd>E</kbd>/<kbd>R</kbd> поворот
+    </span>
+    <button class="btn" id="btnRotLeft" title="Повернуть выбранный элемент или цепь против часовой стрелки">↺ -45°</button>
+    <button class="btn" id="btnRotRight" title="Повернуть выбранный элемент или цепь по часовой стрелке">↻ +45°</button>
+    <button class="btn" id="btnFlip180" title="Перевернуть выбранный фрагмент на 180° (верхняя ↔ нижняя цепь)">⇅ 180°</button>
+    <button class="btn" id="btnResetChain" title="Выровнять цепочку ДНК горизонтально по центру">📐 Выровнять цепь</button>
+    <button class="btn" id="btnAutoAngle" title="Помощник выравнивания угла для начинающих">🧲 Авто-угол: ВЫКЛ</button>
+    <button class="btn btn-amber" id="btnRestartLevel" title="Начать текущий уровень заново">🔄 Заново</button>
+  </div>
+
+  <!-- Right Side Mission Dossier & Raw Sequence Inspector -->
+  <aside class="side-drawer" id="sideDrawer">
+    <div class="drawer-header">
+      <div class="drawer-title">🧬 Лабораторное досье миссии</div>
+      <button class="btn" id="btnCloseDrawer" style="padding:2px 7px; font-size:11px;">✕</button>
+    </div>
+
+    <div class="bio-fact-box" id="bioFactBox">
+      Биологическая справка загружается...
+    </div>
+
+    <div style="font-size:11px; font-weight:700; color:#94a3b8; margin-bottom:4px; text-transform:uppercase;">
+      Задачи уровня:
+    </div>
+    <div class="task-checklist" id="taskChecklist"></div>
+
+    <!-- Special interactive block for Detective / Stop-codon / Frameshift analysis -->
+    <div id="specialTaskContainer" style="display:none; margin-bottom:10px;">
+      <div style="font-size:11px; font-weight:700; color:#fbbf24; margin-bottom:4px; text-transform:uppercase;" id="specialTaskTitle">
+        Спецзадание лаборатории:
+      </div>
+      <div id="specialTaskBody" style="font-size:12px; color:#e2e8f0; margin-bottom:6px;"></div>
+      <div class="detective-options" id="specialTaskOptions"></div>
+    </div>
+
+    <div style="font-size:11px; font-weight:700; color:#94a3b8; margin-bottom:4px; text-transform:uppercase;">
+      Исходная шифровка гена (0=A, 1=C, 2=G, 3=T):
+    </div>
+    <div class="raw-code-box" id="rawCodeBox"></div>
+  </aside>
+</main>
+
+<!-- ==================== LEVEL COMPLETE MODAL ==================== -->
+<div class="modal-backdrop" id="completeModal">
+  <div class="modal-card">
+    <div class="stars-row" id="modalStars">⭐⭐⭐</div>
+    <div class="modal-title" id="modalTitle">Цепочка ДНК восстановлена!</div>
+    <div class="modal-subtitle" id="modalSubtitle">Вы успешно завершили репарацию гена.</div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="lbl">Очки за уровень</div>
+        <div class="val" id="modalLevelScore" style="color:#fbbf24">+0</div>
+      </div>
+      <div class="stat-box">
+        <div class="lbl">Время уровня</div>
+        <div class="val" id="modalLevelTime" style="color:#34d399">00:00</div>
+      </div>
+      <div class="stat-box">
+        <div class="lbl">Точность</div>
+        <div class="val" id="modalAccuracy" style="color:#a78bfa">100%</div>
+      </div>
+      <div class="stat-box">
+        <div class="lbl">Ошибок</div>
+        <div class="val" id="modalErrors" style="color:#fb7185">0</div>
+      </div>
+    </div>
+
+    <div class="bio-fact-box" id="modalBioSummary"></div>
+
+    <div class="modal-actions">
+      <button class="btn" id="btnModalReplay">🔄 Пройти ещё раз</button>
+      <button class="btn btn-primary" id="btnModalNext">Следующая миссия ➔</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== HELP / GITHUB PAGES MODAL ==================== -->
+<div class="modal-backdrop" id="helpModal">
+  <div class="modal-card">
+    <div class="modal-title">🧬 Как играть в «ДНК-Реконструктор»</div>
+    <div class="modal-subtitle">
+      Вы — биоинженер в лаборатории восстановления повреждённых генов. Ваша цель — собрать разорванные цепочки ДНК, исправить мутации и решить генетические загадки!
+    </div>
+
+    <div class="code-steps">
+      <b>1. Код нуклеотидов (Сумма пары всегда равна 3!):</b><br>
+      • <b style="color:#ff5964">0 = A (Аденин)</b> всегда соединяется с <b style="color:#34d399">3 = T (Тимин)</b> — 2 водородные связи (2 зубчика пазла).<br>
+      • <b style="color:#38bdf8">1 = C (Цитозин)</b> всегда соединяется с <b style="color:#fbbf24">2 = G (Гуанин)</b> — 3 водородные связи (3 зубчика пазла).<br><br>
+      <b>2. Управление мышью (Движение и Вращение):</b><br>
+      • <b>Перемещение:</b> Зажмите левую кнопку мыши (ЛКМ) на любом плавающем фрагменте или на самой цепочке ДНК, чтобы передвинуть их.<br>
+      • <b>Вращение фрагментов и цепи мышью:</b><br>
+      &nbsp;&nbsp;— Потяните мышью за <b>светящееся кольцо со стрелкой ↻</b> вокруг выбранного фрагмента или на концах цепочки ДНК;<br>
+      &nbsp;&nbsp;— Или крутите <b>колёсико мыши</b> над фрагментом / цепочкой ДНК;<br>
+      &nbsp;&nbsp;— Или зажмите <b>правую кнопку мыши (ПКМ)</b> и потяните.<br>
+      • <b>Ориентация пазла:</b> Верхняя цепь (5'→3') имеет остов сверху (угол 0°), а нижняя комплементарная цепь (3'←5') перевёрнута на 180° (остов снизу)!<br><br>
+      <b>3. Разнообразные миссии:</b><br>
+      • На некоторых уровнях нужно не только вставить пропуски, но и <b>выбить кликом ошибочные основания</b> (некомплементарные пары или опасные стоп-кодоны), найти старт-кодон <code>032 (ATG)</code> или вычислить преступника по числу повторов <code>0203 (AGAT)</code>!
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="btnCloseHelp">Понятно, в лабораторию!</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// ДНК-РЕКОНСТРУКТОР: ЯДРО СИМУЛЯТОРА И ДАННЫЕ УРОВНЕЙ
+// ============================================================================
+
+const BASE_INFO = {
+  0: { digit: '0', letter: 'A', ru: 'Аденин',  pair: 3, bonds: 2, color: '#ff5964', dark: '#991b1b' },
+  1: { digit: '1', letter: 'C', ru: 'Цитозин', pair: 2, bonds: 3, color: '#38bdf8', dark: '#075985' },
+  2: { digit: '2', letter: 'G', ru: 'Гуанин',  pair: 1, bonds: 3, color: '#fbbf24', dark: '#92400e' },
+  3: { digit: '3', letter: 'T', ru: 'Тимин',   pair: 0, bonds: 2, color: '#34d399', dark: '#065f46' }
+};
+
+function complementStr(seq) {
+  return seq.split('').map(c => String(3 - parseInt(c, 10))).join('');
+}
+
+// Полный список из 10 миссий: плавный рост сложности + все 7 миссий из задания
+const LEVELS = [
+  {
+    id: 1,
+    badge: "Уровень 1 · Обучение",
+    title: "Разминка: «Первая спираль» (Правило Чаргаффа)",
+    shortName: "1. Разминка: Первая спираль",
+    desc: "Соберите 4 недостающих основания в простую цепочку ДНК. Двигайте и поворачивайте фрагменты и саму цепь мышью!",
+    bioFact: "В ДНК человека 4 азотистых основания: Аденин (0/A), Цитозин (1/C), Гуанин (2/G) и Тимин (3/T). По правилу Чаргаффа 0(A) всегда соединяется с 3(T), а 1(C) — с 2(G). В цифровом коде сумма верхней и нижней цифры в каждой паре всегда равна 3!",
+    rawText:
+`Верхняя цепь (5'→3'): 0 3 2  1 0 1  2 3 0
+Нижняя цепь  (3'←5'): 3 0 1  2 3 2  1 0 3
+Подсказка: 0+3=3 (A↔T), 1+2=3 (C↔G)`,
+    upperTarget: "032101230",
+    lowerTarget: "301232103",
+    // Определяем какие участки отсутствуют и плавают вокруг
+    gaps: [
+      { strand: 'upper', start: 1, len: 1 }, // '3'
+      { strand: 'lower', start: 3, len: 1 }, // '2'
+      { strand: 'upper', start: 5, len: 1 }, // '1'
+      { strand: 'lower', start: 7, len: 1 }  // '0'
+    ],
+    mismatches: [],
+    extraDecoys: ["0", "2", "3"],
+    angleTolerance: 42, // прощающий угол на 1 уровне
+    timePar: 45,
+    specialQuiz: null
+  },
+
+  {
+    id: 2,
+    badge: "Уровень 2 · Задание №1",
+    title: "№1: «Кровный код» (Ген HBB — Бета-глобин)",
+    shortName: "2. №1 «Кровный код» (Ген HBB)",
+    desc: "Цепочка гена гемоглобина HBB распалась на фрагменты! Соберите триплеты и отдельные основания в правильные места обеих цепей.",
+    bioFact: "Ген HBB кодирует бета-цепь гемоглобина — белка эритроцитов, переносящего кислород. Триплет №7 (202 = GAG) кодирует глутаминовую кислоту. Если в нём 0(A) заменится на 3(T), получится 232(GTG), что вызывает серповидноклеточную анемию!",
+    rawText:
+`№1: «Кровный код» (Ген HBB)
+032  3  101
+1 2 013 11  202 20  002  13
+211 2 3                                       
+   101     0       20     131  1 0   122  0`,
+    // Первые 6 триплетов гена HBB (18 п.н.): 032 232 101 132 013 113 | 202 (кодон 7)
+    upperTarget: "032232101132013113202",
+    lowerTarget: "301101232201320220131",
+    gaps: [
+      { strand: 'upper', start: 3, len: 1 },  // '2' перед '3' в 232
+      { strand: 'upper', start: 5, len: 1 },  // '2' после '3' в 232
+      { strand: 'upper', start: 10, len: 1 }, // '3' в 132 (1_2)
+      { strand: 'upper', start: 12, len: 3 }, // '013' (целый триплет-фрагмент!)
+      { strand: 'upper', start: 17, len: 1 }, // '3' в 113 (11_)
+      { strand: 'lower', start: 0, len: 3 },  // '301' (взамен повреждённого 211)
+      { strand: 'lower', start: 6, len: 3 },  // '232'
+      { strand: 'lower', start: 15, len: 2 }, // '22' из '220'
+      { strand: 'lower', start: 18, len: 3 }  // '131' (комплементарен 202!)
+    ],
+    mismatches: [],
+    extraDecoys: ["211", "122", "0", "3"],
+    angleTolerance: 35,
+    timePar: 90,
+    specialQuiz: null
+  },
+
+  {
+    id: 3,
+    badge: "Уровень 3 · Задание №2",
+    title: "№2: «Броня тихоходки» (Ген Dsup)",
+    shortName: "3. №2 «Броня тихоходки» (Ген Dsup)",
+    desc: "Жёсткое излучение разбило ген Dsup тихоходки на куски (221, 233, 113, 02, 00...). Разверните фрагменты мышью и соберите броню ДНК!",
+    bioFact: "Тихоходки (водяные медведи) способны выживать в открытом космосе и при дозах радиации в 1000 раз выше смертельных для человека! Секрет — уникальный белок Dsup (Damage suppressor), который обволакивает ДНК как физический щит.",
+    rawText:
+`№2: «Броня тихоходки» (Ген Dsup)
+0 221 2 233 02 00 2
+113 2 12 12 1
+ 0   2
+3   0 2  3 2   1 2 1  3`,
+    // Реконструкция участка Dsup из фрагментов задания №2 (19 п.н.):
+    // 0 [3] 221 [3] 2 [1] 233 [1] 02 [1] 00 [1] 2
+    upperTarget: "0322132123310210012",
+    lowerTarget: "3011201210023123321",
+    gaps: [
+      { strand: 'upper', start: 1, len: 1 },  // '3'
+      { strand: 'upper', start: 2, len: 3 },  // '221'
+      { strand: 'upper', start: 5, len: 1 },  // '3'
+      { strand: 'upper', start: 7, len: 1 },  // '1'
+      { strand: 'upper', start: 8, len: 3 },  // '233'
+      { strand: 'upper', start: 12, len: 2 }, // '02'
+      { strand: 'upper', start: 15, len: 2 }, // '00'
+      { strand: 'lower', start: 1, len: 3 },  // '011' (зеркально 110/113)
+      { strand: 'lower', start: 6, len: 2 },  // '12'
+      { strand: 'lower', start: 9, len: 2 },  // '00'
+      { strand: 'lower', start: 13, len: 2 }, // '12'
+      { strand: 'lower', start: 16, len: 2 }  // '32'
+    ],
+    mismatches: [],
+    extraDecoys: ["113", "3", "0", "2"],
+    angleTolerance: 30,
+    timePar: 110,
+    specialQuiz: null
+  },
+
+  {
+    id: 4,
+    badge: "Уровень 4 · Задание №3",
+    title: "№3: «Неуязвимая клетка» (Ген CCR5 — Поиск ошибок спаривания)",
+    shortName: "4. №3 «Неуязвимая клетка» (Ген CCR5)",
+    desc: "В двухцепочечном гене CCR5 спрятаны 3 ошибки спаривания (где сумма цифр ≠ 3) и разрывы! Кликните по ошибочным основаниям, чтобы удалить их, и вставьте верные.",
+    bioFact: "Белок CCR5 на поверхности иммунных клеток служит «входной дверью» для вируса иммунодефицита. Мутация CCR5-Δ32 закрывает эту дверь и делает клетку неуязвимой! А ферменты репарации (MMR) проверяют, чтобы в каждой паре соблюдалось правило 0↔3 и 1↔2.",
+    rawText:
+`№3: «Неуязвимая клетка» (Ген CCR5)
+21033201221032110220133021103212001321013021132010231002132
+12300132112301213113200312230121332010320312201323202331201
+Внимание на позиции 16 (1↔1), 38 (1↔0) и 51 (2↔2)!`,
+    // Выделяем ключевой сегмент CCR5 (22 п.н., включающий все 3 точечных несовпадения из строки задания №3!)
+    // Позиции с 13 по 54 (сжато в игровой участок 20 п.н. с теми самыми 3 ошибками: 1↔1, 1↔0, 2↔2)
+    upperTarget: "32110220133021011023",
+    lowerTarget: "01223113200312322310",
+    gaps: [
+      { strand: 'upper', start: 0, len: 3 },  // '321'
+      { strand: 'lower', start: 8, len: 3 },  // '200'
+      { strand: 'upper', start: 17, len: 3 }  // '023'
+    ],
+    // Три реальные ошибки спаривания из задания №3:
+    // 1) На инд. 3: верх=1, а внизу ошибочно стоит '1' вместо '2' (1↔1 в поз. 16!)
+    // 2) На инд. 14: верх=0, а внизу ошибочно стоит '1' вместо '3' (0↔1 в поз. 38!)
+    // 3) На инд. 16: верх=1, а внизу ошибочно стоит '1' вместо '2'
+    mismatches: [
+      { strand: 'lower', index: 3, wrongBase: '1' },  // должно быть '2' (пара к '1')
+      { strand: 'lower', index: 13, wrongBase: '0' }, // должно быть '2' (пара к '1' — ошибка 1↔0 из задания №3!)
+      { strand: 'lower', index: 16, wrongBase: '2' }  // вверху '1', должно быть '2', а мы поставим ошибку 2↔2 на инд. 6!
+    ],
+    extraDecoys: ["1", "0", "3", "210"],
+    angleTolerance: 28,
+    timePar: 110,
+    specialQuiz: null
+  },
+
+  {
+    id: 5,
+    badge: "Уровень 5 · Задание №4",
+    title: "№4: «Запуск производства» (Ген Инсулина — Старт-кодон)",
+    shortName: "5. №4 «Запуск производства» (Инсулин)",
+    desc: "Дана длинная кодирующая цепь препроинсулина, но вторая цепь пуста! Найдите старт-кодон 032 (ATG) и соберите комплементарную цепь для запуска синтеза белка.",
+    bioFact: "В задании №4 зашифрован настоящий сигнальный пептид инсулина человека (MALWMRLLPLLALLALW)! Синтез любого белка начинается строго со старт-кодона 032 (ATG — Метионин) на 60-м нуклеотиде, к которому прикрепляется антикодон/комплемент 301 (TAC).",
+    rawText:
+`№4: «Запуск производства» (Ген Инсулина)
+5'-UTR (до старта): 02111311022010221321031020020221103100210203101323113313211
+Старт синтеза (с 60 п.н.): 032 211 132 322 032 121 131 132 111 132...
+Аминокислоты:             Met Ala Leu Trp Met Arg Leu Leu Pro Leu...`,
+    // Участок вокруг точки старта (конец 5'-UTR + старт-кодон 032 + первые 5 кодонов инсулина = 21 п.н.):
+    // 3211 | 032 (ATG) | 211 (GCC) | 132 (CTG) | 322 (TGG) | 032 (ATG) | 121 (CGC)
+    upperTarget: "321103221113232203212",
+    lowerTarget: "012230112220101130121",
+    gaps: [
+      { strand: 'lower', start: 4, len: 3 },  // '301' — комплемент старт-кодона 032 (ATG)!
+      { strand: 'lower', start: 7, len: 3 },  // '122' — комплемент 211 (GCC - Ala)
+      { strand: 'lower', start: 10, len: 3 }, // '201' — комплемент 132 (CTG - Leu)
+      { strand: 'lower', start: 13, len: 3 }, // '011' — комплемент 322 (TGG - Trp)
+      { strand: 'lower', start: 16, len: 3 }, // '301' — комплемент второго 032 (ATG - Met)
+      { strand: 'upper', start: 19, len: 2 }  // '12' в конце
+    ],
+    mismatches: [],
+    extraDecoys: ["032", "320", "111", "000"],
+    angleTolerance: 26,
+    timePar: 120,
+    specialQuiz: {
+      title: "🔬 Вопрос биоинженера (Ген Инсулина):",
+      question: "Какой триплет в цифровой записи (0=A, 1=C, 2=G, 3=T) является универсальным СТАРТ-КОДОНОМ (ATG), запускающим производство инсулина?",
+      options: [
+        { text: "032 (ATG) — комплементарен 301 (TAC)", correct: true },
+        { text: "300 (TAA) — стоп-кодон терминации", correct: false },
+        { text: "211 (GCC) — кодон аланина", correct: false }
+      ]
+    }
+  },
+
+  {
+    id: 6,
+    badge: "Уровень 6 · Задание №5",
+    title: "№5: «Смертельный сдвиг» (Ген Группы Крови ABO)",
+    shortName: "6. №5 «Смертельный сдвиг» (Ген ABO)",
+    desc: "Сравните две цепи гена группы крови: во второй цепи выпало одно основание (делеция 2/G), вызвав сдвиг рамки считывания и стоп-кодон 320! Восстановите выпавшее звено.",
+    bioFact: "В задании №5 показана знаменитая мутация G261del в гене ABO! На 43-й позиции из триплета 221 выпадает одна цифра '2' (Гуанин): длина цепи сокращается с 60 до 59 нуклеотидов, рамка считывания сдвигается (...110 213 320...), и возникает преждевременный стоп-кодон 320 (TGA), дающий I(O) группу крови.",
+    rawText:
+`№5: «Смертельный сдвиг» (Ген Группы Крови)
+Норма (60 п.н.): 132201103212001322102113002231012213032110[2]21332011232320111
+Сдвиг (59 п.н.): 132201103212001322102113002231012213032110[-]21332011232320111
+Место мутации: после 42-го нуклеотида (...032 110 [2]21 332 011 232 320 111)`,
+    // Участок с 37 по 60 нуклеотид эталонной цепи (24 п.н.):
+    // 032 110 221 332 011 232 320 111
+    upperTarget: "032110221332011232320111",
+    lowerTarget: "301223112001322101013222",
+    gaps: [
+      { strand: 'upper', start: 6, len: 1 },  // Выпавший '2' (Гуанин), вызвавший смертельный сдвиг!
+      { strand: 'lower', start: 6, len: 1 },  // Комплементарный '1' (Цитозин)
+      { strand: 'upper', start: 7, len: 2 },  // '21' из триплета 221
+      { strand: 'lower', start: 9, len: 3 },  // '001' (комплемент 332)
+      { strand: 'upper', start: 15, len: 3 }, // '232'
+      { strand: 'lower', start: 18, len: 3 }  // '013' (комплемент 320)
+    ],
+    mismatches: [
+      { strand: 'upper', index: 12, wrongBase: '3' } // ошибка сдвига на месте '0' в 011
+    ],
+    extraDecoys: ["320", "0", "3", "213"],
+    angleTolerance: 25,
+    timePar: 125,
+    specialQuiz: {
+      title: "🩸 Анализ мутации сдвига рамки (Ген ABO):",
+      question: "Какое основание выпало во второй строке задания №5 на 43-й позиции, превратив триплет 221 в 213 и создав ложный стоп-кодон 320?",
+      options: [
+        { text: "Выпала цифра 2 (G · Гуанин) после участка ...032110", correct: true },
+        { text: "Выпала цифра 0 (A · Аденин) в самом начале цепи", correct: false },
+        { text: "Добавилась лишняя цифра 3 (T · Тимин) в конце цепи", correct: false }
+      ]
+    }
+  },
+
+  {
+    id: 7,
+    badge: "Уровень 7 · Задание №6",
+    title: "№6: «Протокол самоуничтожения» (Стоп-кодоны и Апоптоз)",
+    shortName: "7. №6 «Протокол самоуничтожения» (Апоптоз)",
+    desc: "Даны 3 цепи по 39 нуклеотидов (13 триплетов). В цепях №1 и №2 в середине возникли опасные стоп-кодоны (300=TAA и 320=TGA), запускающие апоптоз! Обезвредьте их и соберите цепь.",
+    bioFact: "Стоп-кодоны — это триплеты 300 (TAA), 302 (TAG) и 320 (TGA). В норме стоп-кодон должен стоять ТОЛЬКО в самом конце гена (как в 3-й цепи задания №6 — триплет №13 = 320). Если мутация создаёт стоп-кодон посреди гена (в 1-й цепи на 7-м триплете 300, во 2-й цепи на 8-м триплете 320), синтез обрывается и клетка включает протокол самоуничтожения (апоптоз)!",
+    rawText:
+`№6: «Протокол самоуничтожения» (Стоп-кодоны: 300=TAA, 302=TAG, 320=TGA)
+Цепь 1: 211 023 120 112 310 221 [300!] 213 103 121 200 311 231 (Стоп в середине!)
+Цепь 2: 132 011 232 110 231 120 221 [320!] 112 321 032 210 131 (Стоп в середине!)
+Цепь 3: 312 022 131 011 232 103 122 102 311 202 112 210 [320] (Норма: стоп в конце)`,
+    // Центральный участок Цепи 1 (триплеты 5..11 = 21 п.н.), где на 7-м триплете (инд. 6..8) возник аварийный стоп-кодон 300 (TAA),
+    // который нужно заменить на здоровый кодон Тирозина 301 (TAC -> последняя цифра 0 заменена на 1!)
+    upperTarget: "310221301213103121200",
+    lowerTarget: "023112032120230212133",
+    gaps: [
+      { strand: 'upper', start: 0, len: 3 },  // '310'
+      { strand: 'lower', start: 3, len: 3 },  // '112'
+      { strand: 'lower', start: 6, len: 3 },  // '032' (комплемент к исправленному 301)
+      { strand: 'upper', start: 12, len: 3 }, // '103'
+      { strand: 'lower', start: 18, len: 3 }  // '133' (комплемент к 200)
+    ],
+    mismatches: [
+      // На инд. 8 стоит '0' (делая триплет 300 = стоп-кодон TAA!), нужно выбить '0' и поставить '1' (301 = TAC)!
+      { strand: 'upper', index: 8, wrongBase: '0' },
+      { strand: 'lower', index: 10, wrongBase: '0' } // должно быть '2' (пара к '1' в 213)
+    ],
+    extraDecoys: ["300", "320", "0", "3"],
+    angleTolerance: 24,
+    timePar: 130,
+    specialQuiz: {
+      title: "⚠️ Анализ трёх цепей задания №6:",
+      question: "Какая из трёх цепей в задании №6 построена ПРАВИЛЬНО (без преждевременного обрыва синтеза посреди гена)?",
+      options: [
+        { text: "Цепь №3 — в ней нет стоп-кодонов внутри, а штатный стоп-кодон 320 (TGA) стоит строго в конце (13-й триплет)", correct: true },
+        { text: "Цепь №1 — в ней триплет 300 (TAA) стоит на 7-м месте в середине цепи", correct: false },
+        { text: "Цепь №2 — в ней триплет 320 (TGA) стоит на 8-м месте в середине цепи", correct: false }
+      ]
+    }
+  },
+
+  {
+    id: 8,
+    badge: "Уровень 8 · Задание №7",
+    title: "№7: «Генетический детектив» (Поиск STR-маркеров)",
+    shortName: "8. №7 «Генетический детектив» (STR-маркеры)",
+    desc: "Восстановите участок с тандемными повторами 0203 (AGAT) в ДНК с места происшествия и вычислите, какой из образцов (№2, №3 или №4) совпадает с уликой №1!",
+    bioFact: "В криминалистике ДНК-профиль человека определяют по STR-маркерам (Short Tandem Repeats) — коротким повторяющимся цепочкам, например 0203 (AGAT). У каждого человека своё число таких повторов! В задании №7 в образце №1 мотив 0203 повторяется ровно 5 раз подряд.",
+    rawText:
+`№7: «Генетический детектив» (Поиск STR-повторов «0203» = AGAT)
+Образец 1 (Улика): ...3321 [0203 0203 0203 0203 0203] 1123... (5 повторов 0203)
+Образец 2:         ...1122 [0203 0203 0203] 1322...           (3 повтора 0203)
+Образец 3:         ...2310 [0203 0203 0203 0203 0203] 1123... (5 повторов 0203)
+Образец 4:         ...3221 [0203 0203 0203 0203 0203 0203 0203] 0112... (7 повторов)`,
+    // Участок Образца №1 с 5 повторами 0203 (20 п.н. = 5 x 0203):
+    upperTarget: "02030203020302030203",
+    lowerTarget: "31303130313031303130",
+    gaps: [
+      { strand: 'upper', start: 0, len: 4 },  // '0203' (1-й повтор)
+      { strand: 'lower', start: 4, len: 4 },  // '3130' (2-й повтор внизу)
+      { strand: 'upper', start: 8, len: 4 },  // '0203' (3-й повтор)
+      { strand: 'lower', start: 12, len: 4 }, // '3130' (4-й повтор внизу)
+      { strand: 'upper', start: 16, len: 4 }, // '0203' (5-й повтор)
+      { strand: 'lower', start: 18, len: 2 }  // '30'
+    ],
+    mismatches: [],
+    extraDecoys: ["0202", "3131", "1213", "03"],
+    angleTolerance: 22,
+    timePar: 130,
+    specialQuiz: {
+      title: "🕵️‍♂️ Заключение генетической экспертизы (STR-анализ):",
+      question: "В образце №1 (с места происшествия) маркер 0203 (AGAT) повторяется 5 раз подряд (02030203020302030203). Какой образец полностью совпадает с ним по числу STR-повторов?",
+      options: [
+        { text: "Образец №2 (3 повтора: 020302030203)", correct: false },
+        { text: "Образец №3 (5 повторов: 02030203020302030203 — Совпадение!)", correct: true },
+        { text: "Образец №4 (7 повторов: 0203020302030203020302030203)", correct: false }
+      ]
+    }
+  },
+
+  {
+    id: 9,
+    badge: "Уровень 9 · Биолюминесценция",
+    title: "№8: «Зелёное свечение» (Ген GFP медузы Aequorea victoria)",
+    shortName: "9. №8 «Зелёное свечение» (Ген GFP)",
+    desc: "Соберите двухцепочечный разрыв гена зелёного флуоресцентного белка (GFP) вокруг триплетов хромофора (313-303-221) и устраните мутации!",
+    bioFact: "За открытие и применение зелёного флуоресцентного белка GFP медузы Aequorea victoria была присуждена Нобелевская премия. Всего три аминокислоты (Ser65-Tyr66-Gly67, кодоны 313-303-221) сворачиваются внутри белкового бочонка и светятся ярко-зелёным светом под ультрафиолетом!",
+    rawText:
+`№8: «Зелёное свечение» (Хромофор GFP: Ser-Tyr-Gly)
+Кодирующая цепь: 132 013 313(Ser) 303(Tyr) 221(Gly) 232 101 002
+Матричная цепь:  201 320 020      030      112      101 232 331`,
+    upperTarget: "132013313303221232101002",
+    lowerTarget: "201320020030112101232331",
+    gaps: [
+      { strand: 'upper', start: 6, len: 3 },  // '313' (Ser)
+      { strand: 'upper', start: 9, len: 3 },  // '303' (Tyr)
+      { strand: 'upper', start: 12, len: 3 }, // '221' (Gly)
+      { strand: 'lower', start: 6, len: 3 },  // '020'
+      { strand: 'lower', start: 12, len: 3 }, // '112'
+      { strand: 'upper', start: 18, len: 3 }, // '101'
+      { strand: 'lower', start: 21, len: 3 }  // '331'
+    ],
+    mismatches: [
+      { strand: 'lower', index: 10, wrongBase: '1' }, // внутри 030 (должно быть 3)
+      { strand: 'upper', index: 3, wrongBase: '2' }   // должно быть 0
+    ],
+    extraDecoys: ["300", "222", "131", "02"],
+    angleTolerance: 20,
+    timePar: 140,
+    specialQuiz: null
+  },
+
+  {
+    id: 10,
+    badge: "Уровень 10 · Финал",
+    title: "№9: «Хранитель генома» (Ген TP53 — Мастер репарации)",
+    shortName: "10. Финал: «Хранитель генома» (Ген TP53)",
+    desc: "Финальный экзамен! Цепочка гена TP53 наклонена и повреждена сразу в нескольких местах: исправьте точечные мутации, соберите фрагменты и подтвердите старт!",
+    bioFact: "Белок p53 (кодируемый геном TP53) называют «Хранителем генома». Он непрерывно сканирует ДНК клетки, останавливает деление при повреждениях и вызывает ферменты репарации — точно так же, как вы делали это на всех 10 уровнях!",
+    rawText:
+`№9: «Хранитель генома» (Ген TP53)
+Цепь 5'→3': 032 202 202 112 102 310 203 132 011
+Цепь 3'←5': 301 131 131 221 231 023 130 201 322`,
+    upperTarget: "032202202112102310203132011",
+    lowerTarget: "301131131221231023130201322",
+    gaps: [
+      { strand: 'upper', start: 0, len: 3 },  // '032' (ATG)
+      { strand: 'lower', start: 3, len: 3 },  // '131'
+      { strand: 'upper', start: 9, len: 3 },  // '112'
+      { strand: 'lower', start: 12, len: 3 }, // '231'
+      { strand: 'upper', start: 18, len: 3 }, // '203'
+      { strand: 'lower', start: 21, len: 3 }, // '201'
+      { strand: 'upper', start: 24, len: 3 }  // '011'
+    ],
+    mismatches: [
+      { strand: 'upper', index: 6, wrongBase: '0' },  // должно быть '2'
+      { strand: 'lower', index: 16, wrongBase: '0' }, // должно быть '2'
+      { strand: 'lower', index: 25, wrongBase: '1' }  // должно быть '2'
+    ],
+    extraDecoys: ["320", "111", "002", "232", "300"],
+    angleTolerance: 18,
+    timePar: 160,
+    specialQuiz: {
+      title: "🏆 Финальный вопрос «Хранителя генома»:",
+      question: "Если на верхней цепи ДНК расположен триплет 203 (GAT), какой триплет должен стоять строго напротив него на нижней цепи?",
+      options: [
+        { text: "130 (CTA) — так как 2+1=3, 0+3=3, 3+0=3", correct: true },
+        { text: "203 (GAT) — идентичная копия", correct: false },
+        { text: "021 (AGC) — случайный набор", correct: false }
+      ]
+    }
+  }
+];
+
+// ============================================================================
+// AUDIO SYNTHESIZER (Web Audio API — без внешних mp3 файлов!)
+// ============================================================================
+class SoundFX {
+  constructor() {
+    this.enabled = true;
+    this.ctx = null;
+  }
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+  playTone(freq, type = 'sine', duration = 0.12, vol = 0.12) {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + duration);
+    } catch (e) {}
+  }
+  snap() {
+    this.playTone(523.25, 'sine', 0.1, 0.14);
+    setTimeout(() => this.playTone(659.25, 'triangle', 0.15, 0.14), 60);
+  }
+  error() {
+    this.playTone(180, 'sawtooth', 0.22, 0.12);
+    setTimeout(() => this.playTone(140, 'sawtooth', 0.25, 0.12), 90);
+  }
+  eject() {
+    this.playTone(350, 'sine', 0.08, 0.1);
+    setTimeout(() => this.playTone(480, 'sine', 0.1, 0.1), 50);
+  }
+  win() {
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((n, i) => {
+      setTimeout(() => this.playTone(n, 'triangle', 0.22, 0.15), i * 95);
+    });
+  }
+}
+
+const sfx = new SoundFX();
+
+// ============================================================================
+// СОСТОЯНИЕ ИГРЫ И ФИЗИЧЕСКОЙ СЦЕНЫ
+// ============================================================================
+const state = {
+  currentLevelIdx: 0,
+  notationMode: 'both', // 'both' | 'digits' | 'letters'
+  autoAngle: false,
+  totalScore: 0,
+  levelScore: 0,
+  totalSeconds: 0,
+  levelSeconds: 0,
+  levelErrors: 0,
+  totalActions: 0,
+  correctActions: 0,
+  combo: 1,
+  quizSolved: false,
+  levelCompleted: false,
+
+  // Параметры главной цепочки ДНК (можно двигать и вращать мышью!)
+  chain: {
+    x: 0,
+    y: 0,
+    angle: 0, // в градусах
+    cellW: 44,
+    strandGap: 88,
+    numCols: 10,
+    upperSlots: [], // массив объектов слотов
+    lowerSlots: []
+  },
+
+  // Свободно плавающие вокруг фрагменты ДНК (одиночные основания и мульти-нуклеотидные блоки)
+  fragments: [],
+
+  // Частицы эффектов
+  particles: [],
+
+  // Взаимодействие мышью
+  selectedObj: null,    // { type: 'fragment' | 'chain', item: ... }
+  dragMode: null,       // 'move-fragment' | 'rotate-fragment' | 'move-chain' | 'rotate-chain'
+  dragOffsetX: 0,
+  dragOffsetY: 0,
+  rotateStartAngle: 0,
+  rotateInitialObjAngle: 0,
+  hoveredObj: null,
+  hintTimer: 0,
+  hintSlot: null,
+  hintFragment: null
+};
+
+const canvas = document.getElementById('dnaCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+  if (state.chain.x === 0 && state.chain.y === 0) {
+    centerChain();
+  }
+}
+
+function centerChain() {
+  const drawerOpen = !document.getElementById('sideDrawer').classList.contains('collapsed');
+  const rightPad = (drawerOpen && canvas.width > 950) ? 170 : 0;
+  state.chain.x = (canvas.width - rightPad) / 2;
+  state.chain.y = canvas.height * 0.44;
+  state.chain.angle = (state.currentLevelIdx === 9) ? -8 : 0; // на 10 уровне цепь слегка наклонена!
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+// ============================================================================
+// ИНИЦИАЛИЗАЦИЯ УРОВНЯ
+// ============================================================================
+function loadLevel(idx) {
+  state.currentLevelIdx = Math.max(0, Math.min(LEVELS.length - 1, idx));
+  const lvl = LEVELS[state.currentLevelIdx];
+
+  state.levelSeconds = 0;
+  state.levelErrors = 0;
+  state.levelScore = 0;
+  state.combo = 1;
+  state.levelCompleted = false;
+  state.quizSolved = !lvl.specialQuiz;
+  state.selectedObj = null;
+  state.dragMode = null;
+  state.hintTimer = 0;
+  state.hintSlot = null;
+  state.hintFragment = null;
+
+  // Обновляем селектор и шапку
+  document.getElementById('levelSelect').value = String(state.currentLevelIdx);
+  document.getElementById('missionBadge').textContent = lvl.badge;
+  document.getElementById('missionTitle').textContent = lvl.title;
+  document.getElementById('missionDesc').textContent = lvl.desc;
+  document.getElementById('bioFactBox').textContent = lvl.bioFact;
+  document.getElementById('rawCodeBox').textContent = lvl.rawText;
+
+  // Настраиваем размер ячеек цепи под длину последовательности
+  const N = lvl.upperTarget.length;
+  state.chain.numCols = N;
+  const maxChainWidth = Math.min(canvas.width * 0.68, 920);
+  state.chain.cellW = Math.max(32, Math.min(48, Math.floor(maxChainWidth / N)));
+  state.chain.strandGap = Math.round(state.chain.cellW * 1.95);
+  centerChain();
+
+  // Строим слоты верхней и нижней цепей
+  state.chain.upperSlots = [];
+  state.chain.lowerSlots = [];
+
+  for (let i = 0; i < N; i++) {
+    state.chain.upperSlots.push({
+      strand: 'upper',
+      index: i,
+      targetBase: parseInt(lvl.upperTarget[i], 10),
+      currentBase: parseInt(lvl.upperTarget[i], 10),
+      isMismatch: false,
+      flashTimer: 0
+    });
+    state.chain.lowerSlots.push({
+      strand: 'lower',
+      index: i,
+      targetBase: parseInt(lvl.lowerTarget[i], 10),
+      currentBase: parseInt(lvl.lowerTarget[i], 10),
+      isMismatch: false,
+      flashTimer: 0
+    });
+  }
+
+  state.fragments = [];
+
+  // 1. Вырезаем пропуски (gaps) и создаём плавающие фрагменты пазла
+  lvl.gaps.forEach((g, gIdx) => {
+    const slotsArr = g.strand === 'upper' ? state.chain.upperSlots : state.chain.lowerSlots;
+    let seqStr = '';
+    for (let k = 0; k < g.len; k++) {
+      const slot = slotsArr[g.start + k];
+      seqStr += String(slot.targetBase);
+      slot.currentBase = null;
+    }
+    spawnFragment(seqStr, g.strand, false, gIdx);
+  });
+
+  // 2. Устанавливаем ошибки спаривания (mismatches), которые ученик должен выбить кликом
+  // и создаём правильные основания в плавающем запасе
+  lvl.mismatches.forEach((m, mIdx) => {
+    const slotsArr = m.strand === 'upper' ? state.chain.upperSlots : state.chain.lowerSlots;
+    const slot = slotsArr[m.index];
+    slot.currentBase = parseInt(m.wrongBase, 10);
+    slot.isMismatch = true;
+    // Добавляем правильное основание в пул плавающих фрагментов
+    spawnFragment(String(slot.targetBase), m.strand, false, 100 + mIdx);
+  });
+
+  // 3. Добавляем лишние (запасные/ложные) основания, плавающие вокруг
+  lvl.extraDecoys.forEach((decoySeq, dIdx) => {
+    const randomStrand = (dIdx % 2 === 0) ? 'upper' : 'lower';
+    spawnFragment(decoySeq, randomStrand, true, 200 + dIdx);
+  });
+
+  // 4. Настраиваем спецзадание в боковой панели (если есть)
+  setupSpecialQuiz(lvl);
+  updateChecklistUI();
+  updateHudUI();
+}
+
+function spawnFragment(seqStr, intendedStrand, isDecoy, seedIdx) {
+  const W = canvas.width || 1100;
+  const H = canvas.height || 680;
+  const drawerOpen = !document.getElementById('sideDrawer').classList.contains('collapsed');
+  const maxX = (drawerOpen && W > 950) ? W - 380 : W - 70;
+
+  // Размещаем фрагменты вокруг центральной цепочки ДНК (сверху и снизу)
+  const topZone = (seedIdx % 2 === 0);
+  const x = 90 + ((seedIdx * 137) % Math.max(200, maxX - 150));
+  const y = topZone
+    ? 65 + ((seedIdx * 53) % Math.max(70, Math.floor(H * 0.18)))
+    : Math.floor(H * 0.68) + ((seedIdx * 61) % Math.max(70, Math.floor(H * 0.20)));
+
+  // Начальный угол вращения:
+  // На 1 уровне небольшой наклон, на следующих уровнях — произвольные углы, чтобы вращать мышью!
+  const targetAngleForStrand = (intendedStrand === 'upper') ? 0 : 180;
+  let randomAngles = [0, 30, -30, 45, -45, 90, -90, 135, 180, -135];
+  if (state.currentLevelIdx === 0) {
+    randomAngles = [0, 25, -25, 180];
+  }
+  const initAngle = state.autoAngle
+    ? targetAngleForStrand
+    : randomAngles[(seedIdx * 3 + state.currentLevelIdx) % randomAngles.length];
+
+  const bases = seqStr.split('').map(c => parseInt(c, 10));
+  state.fragments.push({
+    id: 'frag_' + Math.random().toString(36).slice(2, 9),
+    bases: bases, // массив цифр [0, 3, 2]
+    x: x,
+    y: y,
+    vx: (Math.random() - 0.5) * 0.45,
+    vy: (Math.random() - 0.5) * 0.45,
+    angle: initAngle, // в градусах
+    vAngle: (Math.random() - 0.5) * 0.08,
+    isDecoy: isDecoy,
+    shakeTimer: 0
+  });
+}
+
+// ============================================================================
+// СПЕЦЗАДАНИЯ И ЧЕК-ЛИСТ В ДОСЬЕ МИССИИ
+// ============================================================================
+function setupSpecialQuiz(lvl) {
+  const container = document.getElementById('specialTaskContainer');
+  const titleEl = document.getElementById('specialTaskTitle');
+  const bodyEl = document.getElementById('specialTaskBody');
+  const optsEl = document.getElementById('specialTaskOptions');
+
+  if (!lvl.specialQuiz) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  titleEl.textContent = lvl.specialQuiz.title;
+  bodyEl.textContent = lvl.specialQuiz.question;
+  optsEl.innerHTML = '';
+
+  lvl.specialQuiz.options.forEach((opt) => {
+    const btn = document.createElement('button');
+    btn.className = 'detective-btn';
+    btn.textContent = opt.text;
+    btn.addEventListener('click', () => {
+      if (state.quizSolved) return;
+      state.totalActions++;
+      if (opt.correct) {
+        btn.classList.add('correct');
+        state.quizSolved = true;
+        state.correctActions++;
+        const bonus = 200 * state.combo;
+        state.levelScore += bonus;
+        state.totalScore += bonus;
+        state.combo = Math.min(5, state.combo + 1);
+        sfx.snap();
+        showToast(`Верный генетический вывод! +${bonus} очков`, '#10b981');
+        updateChecklistUI();
+        updateHudUI();
+        checkLevelComplete();
+      } else {
+        btn.classList.add('wrong');
+        state.levelErrors++;
+        state.combo = 1;
+        state.levelScore = Math.max(0, state.levelScore - 40);
+        state.totalScore = Math.max(0, state.totalScore - 40);
+        sfx.error();
+        showToast('Ошибка анализа! Проверьте кодоны в досье (-40 очков)', '#f43f5e');
+        updateHudUI();
+      }
+    });
+    optsEl.appendChild(btn);
+  });
+}
+
+function countRemainingGaps() {
+  let count = 0;
+  state.chain.upperSlots.forEach(s => { if (s.currentBase === null) count++; });
+  state.chain.lowerSlots.forEach(s => { if (s.currentBase === null) count++; });
+  return count;
+}
+
+function countRemainingMismatches() {
+  let count = 0;
+  state.chain.upperSlots.forEach(s => { if (s.isMismatch) count++; });
+  state.chain.lowerSlots.forEach(s => { if (s.isMismatch) count++; });
+  return count;
+}
+
+function updateChecklistUI() {
+  const listEl = document.getElementById('taskChecklist');
+  const gapsLeft = countRemainingGaps();
+  const mismatchLeft = countRemainingMismatches();
+  const lvl = LEVELS[state.currentLevelIdx];
+
+  let itemsHtml = '';
+
+  if (lvl.mismatches.length > 0) {
+    const done = mismatchLeft === 0;
+    itemsHtml += `
+      <div class="task-item ${done ? 'done' : ''}">
+        <span>${done ? '✅' : '🔎'}</span>
+        <span>Найти и удалить кликом ошибочные основания (сумма пары ≠ 3): осталось <b>${mismatchLeft}</b></span>
+      </div>`;
+  }
+
+  const gapsDone = (gapsLeft === 0 && mismatchLeft === 0);
+  itemsHtml += `
+    <div class="task-item ${gapsDone ? 'done' : ''}">
+      <span>${gapsDone ? '✅' : '🧩'}</span>
+      <span>Собрать недостающие звенья ДНК (перетащить и повернуть): осталось <b>${gapsLeft}</b> ячеек</span>
+    </div>`;
+
+  if (lvl.specialQuiz) {
+    itemsHtml += `
+      <div class="task-item ${state.quizSolved ? 'done' : ''}">
+        <span>${state.quizSolved ? '✅' : '🧬'}</span>
+        <span>Ответить на контрольный вопрос лаборатории в досье</span>
+      </div>`;
+  }
+
+  listEl.innerHTML = itemsHtml;
+}
+
+// ============================================================================
+// КООРДИНАТНЫЕ ПРЕОБРАЗОВАНИЯ (ДЛЯ ВРАЩЕНИЯ И ДВИЖЕНИЯ ЦЕПИ И ФРАГМЕНТОВ)
+// ============================================================================
+function degToRad(d) { return d * Math.PI / 180; }
+function radToDeg(r) { return r * 180 / Math.PI; }
+
+function normalizeAngle(deg) {
+  let a = deg % 360;
+  if (a > 180) a -= 360;
+  if (a <= -180) a += 360;
+  return a;
+}
+
+// Мировые координаты центра конкретного слота на цепочке ДНК с учётом её поворота
+function getSlotWorldPos(strand, index) {
+  const ch = state.chain;
+  const totalW = ch.numCols * ch.cellW;
+  const localX = -totalW / 2 + (index + 0.5) * ch.cellW;
+  const localY = (strand === 'upper') ? -ch.strandGap / 2 : ch.strandGap / 2;
+
+  const rad = degToRad(ch.angle);
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+
+  return {
+    x: ch.x + localX * cos - localY * sin,
+    y: ch.y + localX * sin + localY * cos,
+    localX,
+    localY
+  };
+}
+
+// Перевод мировых координат мыши (wx, wy) в локальные координаты цепи ДНК
+function worldToChainLocal(wx, wy) {
+  const ch = state.chain;
+  const dx = wx - ch.x;
+  const dy = wy - ch.y;
+  const rad = degToRad(-ch.angle);
+  return {
+    x: dx * Math.cos(rad) - dy * Math.sin(rad),
+    y: dx * Math.sin(rad) + dy * Math.cos(rad)
+  };
+}
+
+// Координаты ручек вращения самой цепочки ДНК (слева и справа от цепи)
+function getChainRotateHandles() {
+  const ch = state.chain;
+  const halfW = (ch.numCols * ch.cellW) / 2 + 42;
+  const rad = degToRad(ch.angle);
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return [
+    { x: ch.x - halfW * cos, y: ch.y - halfW * sin },
+    { x: ch.x + halfW * cos, y: ch.y + halfW * sin }
+  ];
+}
+
+// Координаты ручки вращения фрагмента пазла
+function getFragmentRotateHandle(frag) {
+  const w = frag.bases.length * state.chain.cellW;
+  const radius = Math.max(w / 2 + 24, 42);
+  const rad = degToRad(frag.angle - 90); // сверху по локальной оси фрагмента
+  return {
+    x: frag.x + radius * Math.cos(rad),
+    y: frag.y + radius * Math.sin(rad),
+    radius
+  };
+}
+
+// Проверка попадания точки (wx, wy) внутрь прямоугольника фрагмента
+function isPointInFragment(wx, wy, frag) {
+  const dx = wx - frag.x;
+  const dy = wy - frag.y;
+  const rad = degToRad(-frag.angle);
+  const lx = dx * Math.cos(rad) - dy * Math.sin(rad);
+  const ly = dx * Math.sin(rad) + dy * Math.cos(rad);
+  const halfW = (frag.bases.length * state.chain.cellW) / 2 + 6;
+  const halfH = 28;
+  return Math.abs(lx) <= halfW && Math.abs(ly) <= halfH;
+}
+
+// ============================================================================
+// ПРОВЕРКА УСТАНОВКИ ФРАГМЕНТА В ЦЕПЬ ДНК (МАГНИТНЫЙ SNAP + ПРОВЕРКА УГЛА)
+// ============================================================================
+function trySnapFragment(frag) {
+  const lvl = LEVELS[state.currentLevelIdx];
+  const k = frag.bases.length;
+  const ch = state.chain;
+
+  // Проверяем обе цепи: 'upper' и 'lower'
+  // Внимание:
+  // - Для 'upper' цепи фрагмент должен иметь угол, близкий к ch.angle (разница ~ 0°).
+  //   При этом его базы читаются слева направо: frag.bases[0..k-1].
+  // - Для 'lower' цепи фрагмент перевёрнут на 180° (остов снизу, зубчики вверх),
+  //   то есть его угол должен быть близок к ch.angle + 180°!
+  //   Чтобы школьникам было интуитивно понятно, мы отображаем цифры всегда читаемыми прямо,
+  //   а положение фосфатного остова (сверху или снизу) показывает ориентацию 0° (верхняя цепь) или 180° (нижняя цепь).
+
+  let bestMatch = null;
+  let bestDist = Infinity;
+
+  ['upper', 'lower'].forEach(strand => {
+    const slotsArr = (strand === 'upper') ? ch.upperSlots : ch.lowerSlots;
+    for (let startIdx = 0; startIdx <= ch.numCols - k; startIdx++) {
+      // Проверяем, свободны ли все k слотов подряд
+      let allEmpty = true;
+      for (let i = 0; i < k; i++) {
+        if (slotsArr[startIdx + i].currentBase !== null) {
+          allEmpty = false;
+          break;
+        }
+      }
+      if (!allEmpty) continue;
+
+      // Центр группы из k слотов в мировых координатах
+      const firstPos = getSlotWorldPos(strand, startIdx);
+      const lastPos = getSlotWorldPos(strand, startIdx + k - 1);
+      const centerX = (firstPos.x + lastPos.x) / 2;
+      const centerY = (firstPos.y + lastPos.y) / 2;
+
+      const dist = Math.hypot(frag.x - centerX, frag.y - centerY);
+      if (dist < ch.cellW * 0.95 && dist < bestDist) {
+        bestDist = dist;
+        bestMatch = { strand, startIdx, centerX, centerY, slotsArr };
+      }
+    }
+  });
+
+  if (!bestMatch) return false;
+
+  state.totalActions++;
+
+  // 1. Проверяем угол поворота фрагмента относительно цепочки ДНК
+  const expectedAngle = (bestMatch.strand === 'upper')
+    ? normalizeAngle(ch.angle)
+    : normalizeAngle(ch.angle + 180);
+
+  const angleDiff = Math.abs(normalizeAngle(frag.angle - expectedAngle));
+
+  if (!state.autoAngle && angleDiff > lvl.angleTolerance) {
+    // Угол неправильный! Подсказываем что нужно повернуть фрагмент мышью
+    frag.shakeTimer = 18;
+    sfx.error();
+    showToast(`Поверните фрагмент мышью (за кольцо ↻ или колёсиком) под углом к ${bestMatch.strand === 'upper' ? 'верхней' : 'нижней'} цепи!`, '#f59e0b');
+    return false;
+  }
+
+  // 2. Проверяем подходят ли основания по правилу комплементарности (0↔3, 1↔2)
+  let basesMatch = true;
+  for (let i = 0; i < k; i++) {
+    const slot = bestMatch.slotsArr[bestMatch.startIdx + i];
+    if (slot.targetBase !== frag.bases[i]) {
+      basesMatch = false;
+      break;
+    }
+  }
+
+  // Также проверим, вдруг ученик повернул фрагмент на 180° и порядок баз зеркальный
+  if (!basesMatch) {
+    state.levelErrors++;
+    state.combo = 1;
+    state.levelScore = Math.max(0, state.levelScore - 35);
+    state.totalScore = Math.max(0, state.totalScore - 35);
+    frag.shakeTimer = 22;
+    sfx.error();
+    showToast('Ошибка комплементарности! Проверьте пары: 0(A)↔3(T) и 1(C)↔2(G) (-35 очков)', '#f43f5e');
+    updateHudUI();
+    return false;
+  }
+
+  // УСПЕШНАЯ ВСТАВКА ФРАГМЕНТА В ЦЕПЬ!
+  for (let i = 0; i < k; i++) {
+    const slot = bestMatch.slotsArr[bestMatch.startIdx + i];
+    slot.currentBase = frag.bases[i];
+    slot.isMismatch = false;
+    slot.flashTimer = 25;
+  }
+
+  // Удаляем фрагмент из списка плавающих
+  const idx = state.fragments.indexOf(frag);
+  if (idx !== -1) state.fragments.splice(idx, 1);
+  if (state.selectedObj && state.selectedObj.item === frag) {
+    state.selectedObj = null;
+  }
+
+  state.correctActions++;
+  const gained = (100 * k) * state.combo;
+  state.levelScore += gained;
+  state.totalScore += gained;
+  state.combo = Math.min(5, state.combo + 1);
+
+  spawnParticles(bestMatch.centerX, bestMatch.centerY, BASE_INFO[frag.bases[0]].color, 22);
+  sfx.snap();
+  showToast(`Отлично! Звено встроено в цепь (+${gained} очков, комбо x${state.combo})`, '#10b981');
+
+  updateChecklistUI();
+  updateHudUI();
+  checkLevelComplete();
+  return true;
+}
+
+// ============================================================================
+// ПРОВЕРКА ЗАВЕРШЕНИЯ УРОВНЯ И НАЧИСЛЕНИЕ БОНУСОВ ЗА СКОРОСТЬ И ТОЧНОСТЬ
+// ============================================================================
+function checkLevelComplete() {
+  if (state.levelCompleted) return;
+  if (countRemainingGaps() > 0) return;
+  if (countRemainingMismatches() > 0) return;
+  if (!state.quizSolved) {
+    showToast('Цепь собрана! Теперь ответьте на вопрос в досье справа 👉', '#38bdf8');
+    document.getElementById('sideDrawer').classList.remove('collapsed');
+    return;
+  }
+
+  state.levelCompleted = true;
+  sfx.win();
+
+  const lvl = LEVELS[state.currentLevelIdx];
+  // Бонус за скорость
+  const timeSaved = Math.max(0, lvl.timePar - state.levelSeconds);
+  const speedBonus = timeSaved * 8;
+  // Бонус за безошибочное прохождение
+  const accuracyBonus = (state.levelErrors === 0) ? 250 : Math.max(0, 150 - state.levelErrors * 40);
+
+  state.levelScore += speedBonus + accuracyBonus;
+  state.totalScore += speedBonus + accuracyBonus;
+  updateHudUI();
+
+  const accPct = state.totalActions > 0
+    ? Math.round((state.correctActions / state.totalActions) * 100)
+    : 100;
+
+  let stars = '⭐⭐⭐';
+  if (state.levelErrors >= 3 || state.levelSeconds > lvl.timePar * 1.6) stars = '⭐⭐';
+  if (state.levelErrors >= 6) stars = '⭐';
+
+  setTimeout(() => {
+    document.getElementById('modalStars').textContent = stars;
+    document.getElementById('modalTitle').textContent = `Миссия ${lvl.id} выполнена!`;
+    document.getElementById('modalSubtitle').textContent =
+      `${lvl.title} успешно восстановлена (бонус за скорость: +${speedBonus}, за точность: +${accuracyBonus}).`;
+    document.getElementById('modalLevelScore').textContent = `+${state.levelScore}`;
+    document.getElementById('modalLevelTime').textContent = formatTime(state.levelSeconds);
+    document.getElementById('modalAccuracy').textContent = `${accPct}%`;
+    document.getElementById('modalErrors').textContent = String(state.levelErrors);
+    document.getElementById('modalBioSummary').textContent = lvl.bioFact;
+
+    const nextBtn = document.getElementById('btnModalNext');
+    if (state.currentLevelIdx < LEVELS.length - 1) {
+      nextBtn.textContent = `Следующий уровень (${state.currentLevelIdx + 2} / ${LEVELS.length}) ➔`;
+    } else {
+      nextBtn.textContent = `🎲 Сгенерировать новый вызов`;
+    }
+
+    document.getElementById('completeModal').classList.add('active');
+  }, 550);
+}
+
+// ============================================================================
+// СОБЫТИЯ МЫШИ, КОЛЁСИКА И КЛАВИАТУРЫ
+// ============================================================================
+function getCanvasMouse(e) {
+  const rect = canvas.getBoundingClientRect();
+  const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+  const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top
+  };
+}
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+canvas.addEventListener('mousedown', e => {
+  const m = getCanvasMouse(e);
+  handlePointerDown(m.x, m.y, e.button);
+});
+
+canvas.addEventListener('mousemove', e => {
+  const m = getCanvasMouse(e);
+  handlePointerMove(m.x, m.y);
+});
+
+window.addEventListener('mouseup', () => {
+  handlePointerUp();
+});
+
+// Touch support for tablets / interactive school boards
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    const m = getCanvasMouse(e);
+    handlePointerDown(m.x, m.y, 0);
+  }
+}, { passive: true });
+
+canvas.addEventListener('touchmove', e => {
+  if (e.touches.length === 1 && state.dragMode) {
+    e.preventDefault();
+    const m = getCanvasMouse(e);
+    handlePointerMove(m.x, m.y);
+  }
+}, { passive: false });
+
+window.addEventListener('touchend', () => {
+  handlePointerUp();
+});
+
+function handlePointerDown(mx, my, button) {
+  // 1. Проверяем клик по ручке вращения выбранного фрагмента
+  if (state.selectedObj && state.selectedObj.type === 'fragment') {
+    const frag = state.selectedObj.item;
+    const h = getFragmentRotateHandle(frag);
+    if (Math.hypot(mx - h.x, my - h.y) <= 18) {
+      state.dragMode = 'rotate-fragment';
+      state.rotateStartAngle = radToDeg(Math.atan2(my - frag.y, mx - frag.x));
+      state.rotateInitialObjAngle = frag.angle;
+      return;
+    }
+  }
+
+  // 2. Проверяем клик по ручкам вращения самой цепочки ДНК
+  const chainHandles = getChainRotateHandles();
+  for (const chH of chainHandles) {
+    if (Math.hypot(mx - chH.x, my - chH.y) <= 20) {
+      state.selectedObj = { type: 'chain', item: state.chain };
+      state.dragMode = 'rotate-chain';
+      state.rotateStartAngle = radToDeg(Math.atan2(my - state.chain.y, mx - state.chain.x));
+      state.rotateInitialObjAngle = state.chain.angle;
+      return;
+    }
+  }
+
+  // 3. Проверяем клик по любому плавающему фрагменту (сверху вниз по порядку отрисовки)
+  for (let i = state.fragments.length - 1; i >= 0; i--) {
+    const frag = state.fragments[i];
+    // Также проверяем ручку вращения этого фрагмента
+    const h = getFragmentRotateHandle(frag);
+    if (Math.hypot(mx - h.x, my - h.y) <= 16) {
+      state.selectedObj = { type: 'fragment', item: frag };
+      state.dragMode = 'rotate-fragment';
+      state.rotateStartAngle = radToDeg(Math.atan2(my - frag.y, mx - frag.x));
+      state.rotateInitialObjAngle = frag.angle;
+      return;
+    }
+
+    if (isPointInFragment(mx, my, frag)) {
+      // Перемещаем выбранный фрагмент наверх списка
+      state.fragments.splice(i, 1);
+      state.fragments.push(frag);
+      state.selectedObj = { type: 'fragment', item: frag };
+
+      if (button === 2) {
+        // Правая кнопка мыши вращает фрагмент!
+        state.dragMode = 'rotate-fragment';
+        state.rotateStartAngle = radToDeg(Math.atan2(my - frag.y, mx - frag.x));
+        state.rotateInitialObjAngle = frag.angle;
+      } else {
+        state.dragMode = 'move-fragment';
+        state.dragOffsetX = mx - frag.x;
+        state.dragOffsetY = my - frag.y;
+        if (state.autoAngle) {
+          // Если включён авто-угол, плавно выравниваем к верхней или нижней цепи в зависимости от положения
+          const local = worldToChainLocal(frag.x, frag.y);
+          frag.angle = (local.y <= 0) ? state.chain.angle : normalizeAngle(state.chain.angle + 180);
+        }
+      }
+      return;
+    }
+  }
+
+  // 4. Проверяем клик по слотам цепочки ДНК:
+  // Если в слоте стоит ошибочное основание (isMismatch), клик выбивает его из цепи!
+  const allSlots = [...state.chain.upperSlots, ...state.chain.lowerSlots];
+  for (const slot of allSlots) {
+    if (slot.currentBase !== null) {
+      const pos = getSlotWorldPos(slot.strand, slot.index);
+      if (Math.hypot(mx - pos.x, my - pos.y) <= state.chain.cellW * 0.45) {
+        if (slot.isMismatch) {
+          // Выбиваем ошибочное основание!
+          const ejectedBase = slot.currentBase;
+          slot.currentBase = null;
+          slot.isMismatch = false;
+          state.totalActions++;
+          state.correctActions++;
+          const bonus = 80 * state.combo;
+          state.levelScore += bonus;
+          state.totalScore += bonus;
+          spawnParticles(pos.x, pos.y, '#fb7185', 18);
+          sfx.eject();
+          showToast(`Ошибочное основание ${ejectedBase} (${BASE_INFO[ejectedBase].letter}) удалено из цепи! (+${bonus} очков)`, '#38bdf8');
+          updateChecklistUI();
+          updateHudUI();
+          return;
+        }
+      }
+    }
+  }
+
+  // 5. Проверяем клик по телу самой цепочки ДНК (для перемещения или вращения ПКМ всей цепи)
+  const local = worldToChainLocal(mx, my);
+  const halfW = (state.chain.numCols * state.chain.cellW) / 2 + 25;
+  const halfH = state.chain.strandGap / 2 + 38;
+  if (Math.abs(local.x) <= halfW && Math.abs(local.y) <= halfH) {
+    state.selectedObj = { type: 'chain', item: state.chain };
+    if (button === 2) {
+      state.dragMode = 'rotate-chain';
+      state.rotateStartAngle = radToDeg(Math.atan2(my - state.chain.y, mx - state.chain.x));
+      state.rotateInitialObjAngle = state.chain.angle;
+    } else {
+      state.dragMode = 'move-chain';
+      state.dragOffsetX = mx - state.chain.x;
+      state.dragOffsetY = my - state.chain.y;
+    }
+    return;
+  }
+
+  state.selectedObj = null;
+}
+
+function handlePointerMove(mx, my) {
+  if (!state.dragMode) {
+    // Обновляем курсор при наведении
+    let hover = false;
+    const chainHandles = getChainRotateHandles();
+    for (const chH of chainHandles) {
+      if (Math.hypot(mx - chH.x, my - chH.y) <= 20) hover = true;
+    }
+    for (const frag of state.fragments) {
+      const h = getFragmentRotateHandle(frag);
+      if (Math.hypot(mx - h.x, my - h.y) <= 16 || isPointInFragment(mx, my, frag)) {
+        hover = true;
+      }
+    }
+    canvas.style.cursor = hover ? 'pointer' : 'grab';
+    return;
+  }
+
+  if (state.dragMode === 'move-fragment' && state.selectedObj?.type === 'fragment') {
+    const frag = state.selectedObj.item;
+    frag.x = mx - state.dragOffsetX;
+    frag.y = my - state.dragOffsetY;
+    frag.vx = 0;
+    frag.vy = 0;
+    if (state.autoAngle) {
+      const local = worldToChainLocal(frag.x, frag.y);
+      frag.angle = (local.y <= 0) ? state.chain.angle : normalizeAngle(state.chain.angle + 180);
+    }
+  } else if (state.dragMode === 'rotate-fragment' && state.selectedObj?.type === 'fragment') {
+    const frag = state.selectedObj.item;
+    const curAngle = radToDeg(Math.atan2(my - frag.y, mx - frag.x));
+    let newAngle = normalizeAngle(state.rotateInitialObjAngle + (curAngle - state.rotateStartAngle));
+    // Мягкий магнит к углам цепи (0° и 180° относительно цепи)
+    const snap0 = normalizeAngle(state.chain.angle);
+    const snap180 = normalizeAngle(state.chain.angle + 180);
+    if (Math.abs(normalizeAngle(newAngle - snap0)) < 8) newAngle = snap0;
+    if (Math.abs(normalizeAngle(newAngle - snap180)) < 8) newAngle = snap180;
+    frag.angle = newAngle;
+    frag.vAngle = 0;
+  } else if (state.dragMode === 'move-chain') {
+    state.chain.x = mx - state.dragOffsetX;
+    state.chain.y = my - state.dragOffsetY;
+  } else if (state.dragMode === 'rotate-chain') {
+    const curAngle = radToDeg(Math.atan2(my - state.chain.y, mx - state.chain.x));
+    let newAngle = normalizeAngle(state.rotateInitialObjAngle + (curAngle - state.rotateStartAngle));
+    if (Math.abs(newAngle) < 5) newAngle = 0;
+    state.chain.angle = newAngle;
+  }
+}
+
+function handlePointerUp() {
+  if (state.dragMode === 'move-fragment' && state.selectedObj?.type === 'fragment') {
+    trySnapFragment(state.selectedObj.item);
+  }
+  state.dragMode = null;
+}
+
+// Вращение колёсиком мыши!
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const m = getCanvasMouse(e);
+  const delta = (e.deltaY > 0) ? 15 : -15;
+
+  // Если мышь над фрагментом или фрагмент выбран
+  for (let i = state.fragments.length - 1; i >= 0; i--) {
+    const frag = state.fragments[i];
+    if (isPointInFragment(m.x, m.y, frag)) {
+      state.selectedObj = { type: 'fragment', item: frag };
+      frag.angle = normalizeAngle(frag.angle + delta);
+      frag.vAngle = 0;
+      return;
+    }
+  }
+
+  if (state.selectedObj?.type === 'fragment') {
+    state.selectedObj.item.angle = normalizeAngle(state.selectedObj.item.angle + delta);
+    state.selectedObj.item.vAngle = 0;
+    return;
+  }
+
+  // Иначе вращаем саму цепочку ДНК!
+  state.chain.angle = normalizeAngle(state.chain.angle + delta * 0.5);
+}, { passive: false });
+
+// Клавиши Q / E / R / Space для вращения
+window.addEventListener('keydown', e => {
+  if (e.key === 'q' || e.key === 'Q' || e.key === 'й' || e.key === 'Й') {
+    rotateActiveObject(-30);
+  } else if (e.key === 'e' || e.key === 'E' || e.key === 'у' || e.key === 'У') {
+    rotateActiveObject(30);
+  } else if (e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К' || e.key === ' ') {
+    rotateActiveObject(180);
+  }
+});
+
+function rotateActiveObject(deg) {
+  if (state.selectedObj?.type === 'fragment') {
+    state.selectedObj.item.angle = normalizeAngle(state.selectedObj.item.angle + deg);
+    state.selectedObj.item.vAngle = 0;
+  } else {
+    state.chain.angle = normalizeAngle(state.chain.angle + (deg === 180 ? 45 : deg));
+  }
+}
+
+// ============================================================================
+// ОТРИСОВКА СЦЕНЫ НА CANVAS (ДНК-ЦЕПЬ, ВОДОРОДНЫЕ СВЯЗИ, ПАЗЛЫ, ЧАСТИЦЫ)
+// ============================================================================
+function formatBaseLabel(digit) {
+  const info = BASE_INFO[digit];
+  if (state.notationMode === 'digits') return info.digit;
+  if (state.notationMode === 'letters') return info.letter;
+  return `${info.digit}·${info.letter}`;
+}
+
+function spawnParticles(x, y, color, count = 16) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1.2 + Math.random() * 3.8;
+    state.particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      radius: 2.5 + Math.random() * 3,
+      color,
+      alpha: 1
+    });
+  }
+}
+
+function drawNucleotideTile(ctx, x, y, w, h, digit, isUpperOrientation, isMismatch = false, flashTimer = 0) {
+  const info = BASE_INFO[digit];
+  const halfW = w / 2 - 2;
+  const halfH = h / 2;
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Фосфатно-дезоксирибозный остов (сверху для верхней цепи, снизу для нижней цепи)
+  const backboneH = 8;
+  const backboneY = isUpperOrientation ? -halfH : (halfH - backboneH);
+
+  ctx.fillStyle = isMismatch ? '#e11d48' : '#334155';
+  ctx.strokeStyle = isMismatch ? '#fda4af' : '#64748b';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.roundRect(-halfW, backboneY, halfW * 2, backboneH, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  // Основное тело азотистого основания
+  const bodyY = isUpperOrientation ? (-halfH + backboneH) : -halfH;
+  const bodyH = h - backboneH;
+
+  ctx.fillStyle = info.color;
+  ctx.strokeStyle = (flashTimer > 0) ? '#ffffff' : 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = (flashTimer > 0) ? 3 : 1.4;
+
+  ctx.beginPath();
+  ctx.roundRect(-halfW, bodyY, halfW * 2, bodyH, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  // Рисуем зубчики водородных связей (2 зубчика для 0/A и 3/T, 3 зубчика для 1/C и 2/G)
+  const teethCount = info.bonds; // 2 или 3
+  const toothEdgeY = isUpperOrientation ? (bodyY + bodyH) : bodyY;
+  const toothDir = isUpperOrientation ? 1 : -1;
+  ctx.fillStyle = info.color;
+  for (let t = 0; t < teethCount; t++) {
+    const tx = -halfW * 0.55 + (t / (teethCount - 1)) * (halfW * 1.1);
+    ctx.beginPath();
+    ctx.arc(tx, toothEdgeY + toothDir * 3, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Текст внутри нуклеотида (всегда читаемый!)
+  ctx.fillStyle = '#0f172a';
+  ctx.font = `800 ${w < 38 ? 11 : 12.5}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(formatBaseLabel(digit), 0, bodyY + bodyH / 2);
+
+  // Если это ошибка спаривания (isMismatch) — рисуем предупреждающий пульсирующий маркер!
+  if (isMismatch) {
+    const pulse = 0.65 + 0.35 * Math.sin(performance.now() * 0.008);
+    ctx.strokeStyle = `rgba(244, 63, 94, ${pulse})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(-halfW - 3, -halfH - 3, halfW * 2 + 6, h + 6, 8);
+    ctx.stroke();
+
+    ctx.fillStyle = '#f43f5e';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('⚠️ клик', 0, isUpperOrientation ? -halfH - 9 : halfH + 11);
+  }
+
+  ctx.restore();
+}
+
+function renderScene() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 1. Фоновая биолюминесцентная сетка лаборатории
+  ctx.save();
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)';
+  ctx.lineWidth = 1;
+  const gridStep = 45;
+  for (let x = 0; x < canvas.width; x += gridStep) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += gridStep) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  const ch = state.chain;
+  const totalW = ch.numCols * ch.cellW;
+  const tileH = 42;
+
+  // 2. Отрисовка центральной цепочки ДНК (с учётом её позиции и угла вращения!)
+  ctx.save();
+  ctx.translate(ch.x, ch.y);
+  ctx.rotate(degToRad(ch.angle));
+
+  // Подложка молекулы ДНК
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+  ctx.strokeStyle = (state.selectedObj?.type === 'chain')
+    ? 'rgba(56, 189, 248, 0.7)'
+    : 'rgba(148, 163, 184, 0.22)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(-totalW / 2 - 18, -ch.strandGap / 2 - 34, totalW + 36, ch.strandGap + 68, 16);
+  ctx.fill();
+  ctx.stroke();
+
+  // Подписи концов 5' и 3'
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText("5'→", -totalW / 2 - 10, -ch.strandGap / 2 - 22);
+  ctx.fillText("→3'", totalW / 2 + 10, -ch.strandGap / 2 - 22);
+  ctx.fillStyle = '#a78bfa';
+  ctx.fillText("3'←", -totalW / 2 - 10, ch.strandGap / 2 + 28);
+  ctx.fillText("←5'", totalW / 2 + 10, ch.strandGap / 2 + 28);
+
+  // Подсветка рамок триплетов (кодонов по 3 основания)
+  for (let c = 0; c < Math.floor(ch.numCols / 3); c++) {
+    if (c % 2 === 0) {
+      const cx = -totalW / 2 + c * 3 * ch.cellW;
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.04)';
+      ctx.fillRect(cx, -ch.strandGap / 2 - 20, ch.cellW * 3, ch.strandGap + 40);
+    }
+  }
+
+  // Линии сахарофосфатного остова верхней и нижней цепи
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(-totalW / 2, -ch.strandGap / 2 - tileH / 2 + 4);
+  ctx.lineTo(totalW / 2, -ch.strandGap / 2 - tileH / 2 + 4);
+  ctx.moveTo(-totalW / 2, ch.strandGap / 2 + tileH / 2 - 4);
+  ctx.lineTo(totalW / 2, ch.strandGap / 2 + tileH / 2 - 4);
+  ctx.stroke();
+
+  // Водородные связи и слоты верхней и нижней цепи
+  for (let i = 0; i < ch.numCols; i++) {
+    const lx = -totalW / 2 + (i + 0.5) * ch.cellW;
+    const uy = -ch.strandGap / 2;
+    const ly = ch.strandGap / 2;
+
+    const uSlot = ch.upperSlots[i];
+    const lSlot = ch.lowerSlots[i];
+
+    if (uSlot.flashTimer > 0) uSlot.flashTimer--;
+    if (lSlot.flashTimer > 0) lSlot.flashTimer--;
+
+    // Номер позиции
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.45)';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(i + 1), lx, 0);
+
+    // Если оба основания на месте и нет ошибки — рисуем светящиеся водородные связи между ними!
+    if (uSlot.currentBase !== null && lSlot.currentBase !== null && !uSlot.isMismatch && !lSlot.isMismatch) {
+      const bonds = BASE_INFO[uSlot.currentBase].bonds;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([3, 3]);
+      for (let b = 0; b < bonds; b++) {
+        const bx = lx - 6 + (b / (bonds - 1)) * 12;
+        ctx.beginPath();
+        ctx.moveTo(bx, uy + tileH / 2);
+        ctx.lineTo(bx, ly - tileH / 2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    } else if (uSlot.isMismatch || lSlot.isMismatch) {
+      // Красная молния конфликта при некомплементарной паре!
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(lx - 4, uy + tileH / 2);
+      ctx.lineTo(lx + 4, 0);
+      ctx.lineTo(lx - 2, ly - tileH / 2);
+      ctx.stroke();
+    }
+
+    // Отрисовка верхнего слота
+    if (uSlot.currentBase === null) {
+      drawEmptySlot(ctx, lx, uy, ch.cellW, tileH, true, state.hintSlot === uSlot);
+    } else {
+      drawNucleotideTile(ctx, lx, uy, ch.cellW, tileH, uSlot.currentBase, true, uSlot.isMismatch, uSlot.flashTimer);
+    }
+
+    // Отрисовка нижнего слота
+    if (lSlot.currentBase === null) {
+      drawEmptySlot(ctx, lx, ly, ch.cellW, tileH, false, state.hintSlot === lSlot);
+    } else {
+      drawNucleotideTile(ctx, lx, ly, ch.cellW, tileH, lSlot.currentBase, false, lSlot.isMismatch, lSlot.flashTimer);
+    }
+  }
+
+  ctx.restore();
+
+  // Ручки вращения цепочки ДНК (слева и справа)
+  const chainHandles = getChainRotateHandles();
+  chainHandles.forEach(h => {
+    ctx.save();
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('↻', h.x, h.y);
+    ctx.restore();
+  });
+
+  // 3. Отрисовка и физика свободно плавающих фрагментов ДНК вокруг цепи
+  const W = canvas.width;
+  const H = canvas.height;
+
+  state.fragments.forEach(frag => {
+    // Плавное дрейфование в невесомости лаборатории, если фрагмент сейчас не перетаскивают
+    if (state.dragMode !== 'move-fragment' || state.selectedObj?.item !== frag) {
+      frag.x += frag.vx;
+      frag.y += frag.vy;
+      frag.angle = normalizeAngle(frag.angle + frag.vAngle);
+
+      const pad = 55;
+      if (frag.x < pad) { frag.x = pad; frag.vx *= -1; }
+      if (frag.x > W - pad) { frag.x = W - pad; frag.vx *= -1; }
+      if (frag.y < pad) { frag.y = pad; frag.vy *= -1; }
+      if (frag.y > H - 65) { frag.y = H - 65; frag.vy *= -1; }
+    }
+
+    if (frag.shakeTimer > 0) frag.shakeTimer--;
+
+    const isSelected = (state.selectedObj?.type === 'fragment' && state.selectedObj?.item === frag);
+    const isHinted = (state.hintTimer > 0 && state.hintFragment === frag);
+
+    ctx.save();
+    const shakeX = frag.shakeTimer > 0 ? Math.sin(frag.shakeTimer * 1.7) * 5 : 0;
+    ctx.translate(frag.x + shakeX, frag.y);
+    ctx.rotate(degToRad(frag.angle));
+
+    const k = frag.bases.length;
+    const totalFragW = k * ch.cellW;
+
+    // Свечение вокруг выбранного или подсказанного фрагмента
+    if (isSelected || isHinted) {
+      ctx.strokeStyle = isHinted ? '#fbbf24' : '#38bdf8';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.roundRect(-totalFragW / 2 - 8, -tileH / 2 - 8, totalFragW + 16, tileH + 16, 10);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Отрисовываем каждый нуклеотид внутри фрагмента
+    // При угле 0° остов сверху (isUpperOrientation = true). Когда игрок поворачивает фрагмент на 180°,
+    // из-за ctx.rotate(180°) остов автоматически оказывается снизу, а зубчики смотрят вверх!
+    for (let i = 0; i < k; i++) {
+      const bx = -totalFragW / 2 + (i + 0.5) * ch.cellW;
+      drawNucleotideTileForFragment(ctx, bx, 0, ch.cellW, tileH, frag.bases[i], frag.angle);
+    }
+
+    ctx.restore();
+
+    // Отрисовываем кольцо и ручку вращения ↻ для выбранного фрагмента (и лёгкую ручку для всех)
+    const h = getFragmentRotateHandle(frag);
+    if (isSelected) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(frag.x, frag.y, h.radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#0284c7';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('↻', h.x, h.y);
+      ctx.restore();
+    } else {
+      // Маленькая аккуратная точка-индикатор вращения
+      ctx.save();
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.7)';
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  });
+
+  // 4. Частицы
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const p = state.particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.alpha -= 0.028;
+    if (p.alpha <= 0) {
+      state.particles.splice(i, 1);
+      continue;
+    }
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (state.hintTimer > 0) {
+    state.hintTimer--;
+    if (state.hintTimer === 0) {
+      state.hintSlot = null;
+      state.hintFragment = null;
+    }
+  }
+
+  requestAnimationFrame(renderScene);
+}
+
+function drawEmptySlot(ctx, x, y, w, h, isUpper, isHinted) {
+  const halfW = w / 2 - 2;
+  const halfH = h / 2;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = isHinted ? 'rgba(251, 191, 36, 0.28)' : 'rgba(30, 41, 59, 0.55)';
+  ctx.strokeStyle = isHinted ? '#fbbf24' : 'rgba(56, 189, 248, 0.45)';
+  ctx.lineWidth = isHinted ? 2.5 : 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.roundRect(-halfW, -halfH, halfW * 2, h, 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = isHinted ? '#fde68a' : 'rgba(148, 163, 184, 0.6)';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('?', 0, 0);
+  ctx.restore();
+}
+
+function drawNucleotideTileForFragment(ctx, localX, localY, w, h, digit, worldAngleDeg) {
+  const info = BASE_INFO[digit];
+  const halfW = w / 2 - 2;
+  const halfH = h / 2;
+  const backboneH = 8;
+
+  ctx.save();
+  ctx.translate(localX, localY);
+
+  // Остов на верхнем краю локальной плитки (-halfH)
+  ctx.fillStyle = '#334155';
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.roundRect(-halfW, -halfH, halfW * 2, backboneH, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  // Цветное тело нуклеотида
+  const bodyY = -halfH + backboneH;
+  const bodyH = h - backboneH;
+  ctx.fillStyle = info.color;
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.roundRect(-halfW, bodyY, halfW * 2, bodyH, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  // Зубчики водородных связей на нижнем краю локальной плитки
+  const teethCount = info.bonds;
+  ctx.fillStyle = info.color;
+  for (let t = 0; t < teethCount; t++) {
+    const tx = -halfW * 0.55 + (t / (teethCount - 1)) * (halfW * 1.1);
+    ctx.beginPath();
+    ctx.arc(tx, bodyY + bodyH + 3, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Чтобы подпись (0·A, 1·C, 2·G, 3·T) никогда не была вверх ногами при повороте на 180°,
+  // компенсируем вращение для текста!
+  ctx.save();
+  ctx.translate(0, bodyY + bodyH / 2);
+  ctx.rotate(degToRad(-worldAngleDeg));
+  ctx.fillStyle = '#0f172a';
+  ctx.font = `800 ${w < 38 ? 11 : 12.5}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(formatBaseLabel(digit), 0, 0);
+  ctx.restore();
+
+  ctx.restore();
+}
+
+// ============================================================================
+// ТАЙМЕРЫ, ПОДСКАЗКИ И ОБНОВЛЕНИЕ ИНТЕРФЕЙСА HUD
+// ============================================================================
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function updateHudUI() {
+  document.getElementById('hudScore').textContent = String(state.totalScore);
+  document.getElementById('hudLevel').textContent = `${state.currentLevelIdx + 1} / ${LEVELS.length}`;
+  document.getElementById('hudLevelTime').textContent = formatTime(state.levelSeconds);
+  document.getElementById('hudTotalTime').textContent = formatTime(state.totalSeconds);
+
+  const accPct = state.totalActions > 0
+    ? Math.round((state.correctActions / state.totalActions) * 100)
+    : 100;
+  document.getElementById('hudAccuracy').textContent = `${accPct}% (x${state.combo})`;
+  document.getElementById('hudErrors').textContent = String(state.levelErrors);
+}
+
+let toastTimeout = null;
+function showToast(msg, borderColor = '#38bdf8') {
+  const banner = document.getElementById('toastBanner');
+  banner.textContent = msg;
+  banner.style.borderColor = borderColor;
+  banner.classList.add('show');
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => banner.classList.remove('show'), 2600);
+}
+
+setInterval(() => {
+  if (!state.levelCompleted) {
+    state.levelSeconds++;
+    state.totalSeconds++;
+    updateHudUI();
+  }
+}, 1000);
+
+// Кнопки управления
+function initUIControls() {
+  const sel = document.getElementById('levelSelect');
+  LEVELS.forEach((lvl, idx) => {
+    const opt = document.createElement('option');
+    opt.value = String(idx);
+    opt.textContent = lvl.shortName;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => {
+    loadLevel(parseInt(sel.value, 10));
+  });
+
+  document.getElementById('btnNotation').addEventListener('click', (e) => {
+    if (state.notationMode === 'both') {
+      state.notationMode = 'digits';
+      e.currentTarget.textContent = '🔢 Режим: 0123';
+    } else if (state.notationMode === 'digits') {
+      state.notationMode = 'letters';
+      e.currentTarget.textContent = '🔤 Режим: ACGT';
+    } else {
+      state.notationMode = 'both';
+      e.currentTarget.textContent = '🔢 Режим: 0/A';
+    }
+  });
+
+  document.getElementById('btnHint').addEventListener('click', () => {
+    // Ищем первый незаполненный слот и подходящий к нему фрагмент
+    const allSlots = [...state.chain.upperSlots, ...state.chain.lowerSlots];
+    const emptySlot = allSlots.find(s => s.currentBase === null);
+    if (!emptySlot) {
+      const mmSlot = allSlots.find(s => s.isMismatch);
+      if (mmSlot) {
+        showToast(`Подсказка: кликните по ошибочному основанию с пометкой ⚠️ в позиции ${mmSlot.index + 1}!`, '#fbbf24');
+      }
+      return;
+    }
+    const matchingFrag = state.fragments.find(f => !f.isDecoy && f.bases[0] === emptySlot.targetBase);
+    state.hintSlot = emptySlot;
+    state.hintFragment = matchingFrag || null;
+    state.hintTimer = 180;
+    state.totalScore = Math.max(0, state.totalScore - 25);
+    updateHudUI();
+    showToast(`Подсказка: подсвечены целевая ячейка (поз. ${emptySlot.index + 1}) и нужный фрагмент!`, '#fbbf24');
+  });
+
+  document.getElementById('btnDrawerToggle').addEventListener('click', () => {
+    document.getElementById('sideDrawer').classList.toggle('collapsed');
+  });
+
+  document.getElementById('btnCloseDrawer').addEventListener('click', () => {
+    document.getElementById('sideDrawer').classList.add('collapsed');
+  });
+
+  document.getElementById('btnHelp').addEventListener('click', () => {
+    document.getElementById('helpModal').classList.add('active');
+  });
+
+  document.getElementById('btnCloseHelp').addEventListener('click', () => {
+    document.getElementById('helpModal').classList.remove('active');
+  });
+
+  document.getElementById('btnSound').addEventListener('click', (e) => {
+    sfx.enabled = !sfx.enabled;
+    e.currentTarget.textContent = sfx.enabled ? '🔊' : '🔇';
+  });
+
+  document.getElementById('btnRotLeft').addEventListener('click', () => rotateActiveObject(-45));
+  document.getElementById('btnRotRight').addEventListener('click', () => rotateActiveObject(45));
+  document.getElementById('btnFlip180').addEventListener('click', () => rotateActiveObject(180));
+
+  document.getElementById('btnResetChain').addEventListener('click', () => {
+    centerChain();
+    state.chain.angle = 0;
+    showToast('Цепочка ДНК выровнена по горизонтали (0°)', '#38bdf8');
+  });
+
+  document.getElementById('btnAutoAngle').addEventListener('click', (e) => {
+    state.autoAngle = !state.autoAngle;
+    e.currentTarget.textContent = state.autoAngle ? '🧲 Авто-угол: ВКЛ' : '🧲 Авто-угол: ВЫКЛ';
+    showToast(state.autoAngle
+      ? 'Включено авто-выравнивание угла при перетаскивании'
+      : 'Ручное вращение фрагментов мышью активно', '#38bdf8');
+  });
+
+  document.getElementById('btnRestartLevel').addEventListener('click', () => {
+    loadLevel(state.currentLevelIdx);
+  });
+
+  document.getElementById('btnModalReplay').addEventListener('click', () => {
+    document.getElementById('completeModal').classList.remove('active');
+    loadLevel(state.currentLevelIdx);
+  });
+
+  document.getElementById('btnModalNext').addEventListener('click', () => {
+    document.getElementById('completeModal').classList.remove('active');
+    if (state.currentLevelIdx < LEVELS.length - 1) {
+      loadLevel(state.currentLevelIdx + 1);
+    } else {
+      generateInfiniteBonusLevel();
+    }
+  });
+}
+
+// Генератор бесконечных бонусных уровней после прохождения всех 10 миссий
+function generateInfiniteBonusLevel() {
+  const len = 16;
+  let upper = '032'; // старт ATG
+  for (let i = 3; i < len; i++) {
+    upper += String(Math.floor(Math.random() * 4));
+  }
+  const lower = complementStr(upper);
+  const newId = LEVELS.length + 1;
+  LEVELS.push({
+    id: newId,
+    badge: `Бонус #${newId}`,
+    title: `Бонусная миссия #${newId}: «Синтетический геном»`,
+    shortName: `${newId}. Бонус: Синтетический геном`,
+    desc: "Случайно сгенерированная повреждённая цепь ДНК повышенной сложности! Восстановите все разрывы и ошибки.",
+    bioFact: "Синтетическая биология позволяет конструировать искусственные гены с нуля для создания новых лекарств, биотоплива и биосенсоров.",
+    rawText: `Верхняя цепь: ${upper}\nНижняя цепь:  ${lower}`,
+    upperTarget: upper,
+    lowerTarget: lower,
+    gaps: [
+      { strand: 'upper', start: 0, len: 3 },
+      { strand: 'lower', start: 4, len: 3 },
+      { strand: 'upper', start: 8, len: 2 },
+      { strand: 'lower', start: 11, len: 3 },
+      { strand: 'upper', start: 14, len: 2 }
+    ],
+    mismatches: [
+      { strand: 'upper', index: 5, wrongBase: String(( parseInt(upper[5],10) + 1 ) % 4) },
+      { strand: 'lower', index: 9, wrongBase: String(( parseInt(lower[9],10) + 2 ) % 4) }
+    ],
+    extraDecoys: ["01", "23", "3", "0"],
+    angleTolerance: 20,
+    timePar: 130,
+    specialQuiz: null
+  });
+
+  const sel = document.getElementById('levelSelect');
+  const opt = document.createElement('option');
+  opt.value = String(LEVELS.length - 1);
+  opt.textContent = LEVELS[LEVELS.length - 1].shortName;
+  sel.appendChild(opt);
+
+  loadLevel(LEVELS.length - 1);
+}
+
+// Старт приложения
+resizeCanvas();
+initUIControls();
+loadLevel(0);
+requestAnimationFrame(renderScene);
+</script>
+</body>
+</html>
